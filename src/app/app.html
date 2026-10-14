@@ -1,12 +1,206 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
-<body>
-  
+<header class="app-header">
+  <h1>Bienvenue sur votre To Do List</h1>
+  <p class="subtitle">Au travail maintenant !</p>
+</header>
 
-</body>
-</html>
+<!-- Module de création d'une tâche -->
+<section class="card create-section">
+  <div class="create-header-row">
+    <h3>Gestion des tâches</h3>
+    <button
+      type="button"
+      class="btn-toggle-create"
+      (click)="toggleCreateForm()"
+    >
+      {{ showCreateForm() ? 'Masquer la création' : '➕ Créer une tâche' }}
+    </button>
+  </div>
+
+  @if (showCreateForm()) {
+    <div class="create-box">
+      <h4>Créer une tâche</h4>
+      <div class="input-group">
+        <input
+          type="text"
+          id="task-title-input"
+          placeholder="Entrez le titre de la tâche (min. 3 caractères)..."
+          [value]="newTitle()"
+          (input)="newTitle.set($any($event.target).value)"
+          (keyup.enter)="isTitleValid() && create()"
+        />
+
+        <button
+          type="button"
+          class="btn-add"
+          (click)="create()"
+          [disabled]="!isTitleValid()"
+        >
+          Ajouter
+        </button>
+      </div>
+
+      <!-- Erreur visible si moins de 3 caractères saisis -->
+      @if (showTitleError()) {
+        <p class="error-message">
+          ⚠️ Le titre doit contenir au moins 3 caractères.
+        </p>
+      }
+    </div>
+  }
+</section>
+
+<!-- Mes compteurs -->
+<section class="card counters-section">
+  <h3>Mes compteurs</h3>
+  <ul class="counters-list">
+    <li class="counter-item todo">
+      <span class="label">À faire :</span>
+      <span class="badge">{{ todoCount() }}</span>
+    </li>
+    <li class="counter-item done">
+      <span class="label">Faites :</span>
+      <span class="badge">{{ doneCount() }}</span>
+    </li>
+    <li class="counter-item total">
+      <span class="label">Toutes :</span>
+      <span class="badge">{{ totalCount() }}</span>
+    </li>
+  </ul>
+</section>
+
+<!-- Barre de tri avec ul li 3 lignes pour filtrer et décocher tout pour tout voir -->
+<section class="card filter-section">
+  <h3>Barre de tri</h3>
+  <p class="filter-instructions">
+    Cochez pour filtrer la liste, ou décochez pour tout afficher :
+  </p>
+
+  <ul class="filter-list">
+    <li class="filter-item">
+      <label>
+        <input
+          type="checkbox"
+          [checked]="filter() === 'todo'"
+          (change)="setFilter('todo')"
+        />
+        <span>À faire ({{ todoCount() }})</span>
+      </label>
+    </li>
+
+    <li class="filter-item">
+      <label>
+        <input
+          type="checkbox"
+          [checked]="filter() === 'done'"
+          (change)="setFilter('done')"
+        />
+        <span>Faites ({{ doneCount() }})</span>
+      </label>
+    </li>
+
+    <li class="filter-item">
+      <label>
+        <input
+          type="checkbox"
+          [checked]="filter() === 'all'"
+          (change)="setFilter('all')"
+        />
+        <span>Toutes ({{ totalCount() }})</span>
+      </label>
+    </li>
+  </ul>
+</section>
+
+<!-- Liste des tâches -->
+<section class="card tasks-section">
+  <div class="tasks-header">
+    <h3>Ma liste de tâches</h3>
+    <span class="current-filter-pill">
+      @if (filter() === 'todo') { Filtre : À faire }
+      @else if (filter() === 'done') { Filtre : Faites }
+      @else { Filtre : Toutes }
+    </span>
+  </div>
+
+  @if (filteredTasks().length === 0) {
+    <p class="empty-state">Aucune tâche à afficher.</p>
+  } @else {
+    <ul class="tasks-list">
+      @for (task of filteredTasks(); track task.id) {
+        <li class="task-row">
+          @if (editingTaskId() === task.id) {
+            <!-- Mode Modification -->
+            <div class="edit-row">
+              <input
+                type="text"
+                class="edit-input"
+                [value]="editingTitle()"
+                (input)="editingTitle.set($any($event.target).value)"
+                (keyup.enter)="isEditTitleValid() && saveEdit(task.id)"
+                (keyup.escape)="cancelEdit()"
+              />
+
+              <div class="edit-actions">
+                <button
+                  type="button"
+                  class="btn-save"
+                  (click)="saveEdit(task.id)"
+                  [disabled]="!isEditTitleValid()"
+                  title="Sauvegarder"
+                >
+                  💾 Sauvegarder
+                </button>
+                <button
+                  type="button"
+                  class="btn-cancel"
+                  (click)="cancelEdit()"
+                  title="Annuler"
+                >
+                  ❌ Annuler
+                </button>
+              </div>
+            </div>
+
+            @if (!isEditTitleValid()) {
+              <p class="error-message">
+                ⚠️ Le titre modifié doit contenir au moins 3 caractères.
+              </p>
+            }
+          } @else {
+            <!-- Mode Normal -->
+            <label class="task-content">
+              <input
+                type="checkbox"
+                [checked]="task.done"
+                (change)="toggleTask(task.id)"
+              />
+              <span [class.completed]="task.done">
+                {{ task.title }}
+              </span>
+            </label>
+
+            <div class="task-actions">
+              <button
+                type="button"
+                class="btn-action btn-edit"
+                (click)="startEdit(task)"
+                title="Modifier la tâche"
+              >
+                ✏️
+              </button>
+
+              <button
+                type="button"
+                class="btn-action btn-delete"
+                (click)="deleteTask(task.id)"
+                title="Supprimer la tâche"
+              >
+                🗑️
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>
